@@ -1,0 +1,176 @@
+gulp、webapck 基于nodejs的
+webpack 模块化，组件化开发的利器
+vue 集成了webpack
+
+1、安装命令
+    cnpm i webpack@3 -g
+    cnpm i webpack-dev-server@2 -g  // 安装服务器，cnpm run dev
+    cnpm i webpack@3 -S
+    cnpm i webpack-dev-server@2.11.2 -S
+    cnpm i html-webpack-plugin -S   // 会自动将页面中引入需要的js文件
+    cnpm i babel-core babel-loader@7 -S // 解析一些特殊文件，比如es6
+    cnpm i babel-preset-env -S  // 安装包含了es6/es7/es8的一些语法规则----预设
+    cnpm i style-loader css-loader -S
+    cnpm i node-sass sass-loader -S
+    cnpm i url-loader file-loader -S // 处理形如css中写的一些背景图片等
+    cnpm i webpack-dev-middleware -S
+    cnpm i copy-webpack-plugin -S // 拷贝
+2、项目目录下创建一个文件.babelrc
+在Babel执行编译的过程中，会从项目的根目录下的 .babelrc文件中读取配置。.babelrc是一个json格式的文件。
+在.babelrc配置文件中，主要是对预设(presets) 和 插件(plugins) 进行配置。.babelrc配置文件一般为如下
+{
+    "presets": [
+        ["env", { // 含有最新的js版本
+          "modules": false, // 不依赖模块
+          "targets": { // 运行在浏览器端的配置，支持每个浏览器端最后的两个版本，不能小于ie8
+            "browsers": ["> 1%", "last 2 versions", "not ie <= 8"]
+          }
+        }]
+    ],
+    "plugins": []
+}
+2、添加webpack配置文件webpack.config.js
+    const webpack = require('webpack');
+    const path = require('path');
+    const HtmlWebpackPlugin = require('html-webpack-plugin');
+
+    module.exports = {
+        //基础目录，绝对路径，用于从配置中解析入口起点(entry point)和加载器(loader)
+        context: path.resolve(__dirname, './'),
+        // entry: '', // 起点或是应用程序的起点入口。从这个起点开始，应用程序启动执行。如果传递一个数组，那么数组的每一项都会执行。
+        entry: {
+            app: './src/index.js',
+            vendor: './src/test.js'
+        },
+        //output 选项控制 webpack 如何向硬盘写入编译文件。注意，即使可以存在多个入口起点，但只指定一个输出配置。
+        output: {
+            path: path.resolve(__dirname, './dist'),
+            filename: '[name].js' // 如果你是对象入口，那么此时的name就是对象入口中的key
+        }
+    }
+3、创建src/index.js、src/test.js,分别写入一些js语句，然后控制台执行webpack指令，会发现在目录下自动生成了dist目录，目录下出现了app.js和vendor.js
+4、根目录下创建index.html，希望可以将其出现在dist/index.html，并且自动引入js
+5、修改配置文件
+    module.exports = {
+        ...,
+         plugins: [
+                new HtmlWebpackPlugin({ // 会将原来的index.html文件在dist文件处生成并且引入关联的文件
+                    template: './index.html'
+                })
+            ]
+        ...
+    }
+6、如果代码中使用了js的高级语法，需要使用babel解析器进行解析，修改配置文件
+     module.exports = {
+        ...,
+          module: {
+               rules: [
+                   {
+                       test: /\.js$/, // 以js结尾的语句
+                       loader: 'babel-loader' // 以js结尾的语句，需要使用babel解析器进行解析
+                   }
+               ]
+             },
+        ...
+    }
+7、src文件内部引入sass--lib
+    可以在入口文件处通过import './main.scss' 引入新创建的main.scss文件,运行时发现如下出现异常
+    You may need an appropriate loader to handle this file type.
+    意思是你的配置文件缺少相应sass的配置
+    如果爆出异常no such file or directory, scandir 'E:\course-wxx\sz-1804\week5-6-react\day01\webapck\node_modules\.4.9.3@node-sass\vendor'，这是因为版本升级过程中在所难免的，此时请执行cnpm rebuild node-sass
+    module.exports = {
+        ...,
+        module: {
+              rules: [
+                 ...,
+                  {
+                      test: /\.scss$/,
+                      loader: 'style-loader!css-loader!sass-loader' // 从右向左传递
+                  }
+              ]
+            },
+         ...
+    }
+8、每次修改都需要重新运行webpack，如果项目够大，每次编译都需要耗费太多的时间，此时我们应该使用服务器
+    webpack-dev-server,这个服务器是高度可配置的，可以进行设置为代理服务器
+    修改package.json
+    {
+        "scripts": {
+            "dev": "webpack-dev-server", // 开发服务器 运行命令cnpm run dev即可运行，不会出现dist目录，但是虚拟的有
+            "build": "webpack"           // 打包
+          },
+          ...
+    }
+    修改配置文件
+    module.exports = {
+        ...,
+        devServer: {
+                clientLogLevel: 'warning', // 客户端服务器显示log为warning
+                contentBase: false, // since we use CopyWebpackPlugin.
+                host: '0.0.0.0', // 别人可以通过你的ip查看你的项目
+                port: '8080',
+                compress: true,
+                open:false, // 打开默认浏览器运行代码
+                proxy: { // 代理服务器
+                    '/api': {
+                        target: 'http://jsonplaceholder.typicode.com',
+                            changeOrigin: true,
+                            pathRewrite: {
+                            '^/api': ''
+                        }
+                    }
+                }
+            },
+        ...
+    }
+9、配置背景图片，字体图标，视频....
+添加规则即可
+module.exports = {
+        ...,
+        module: {
+              rules: [
+                 ...,
+                   {
+                    test: /\.(png|jpe?g|gif|svg)(\?.*)?$/,
+                    loader: 'url-loader',
+                    options: {
+                        limit: 10000,
+                        name: path.posix.join('', 'img/[name].[hash:7].[ext]')
+                    }
+                },
+                {
+                    test: /\.(mp4|webm|ogg|mp3|wav|flac|aac)(\?.*)?$/,
+                    loader: 'url-loader',
+                    options: {
+                        limit: 1000000,
+                        name: path.posix.join('', 'media/[name].[hash:7].[ext]')
+                    }
+                },
+                {
+                    test: /\.(woff2?|eot|ttf|otf)(\?.*)?$/,
+                    loader: 'url-loader',
+                    options: {
+                        limit: 10000,
+                        name: path.posix.join('', 'fonts/[name].[hash:7].[ext]')
+                    }
+                }
+              ]
+            },
+         ...
+    }
+10、 复制操作
+    cnpm i copy-webapck-plugin -S
+    修改配置
+    module.exports = {
+        ...,
+         plugins: [
+                ...,
+                new CopyWebpackPlugin([
+                    { // 将static文件夹下的内容复制到dist文件夹下的static内
+                        from: path.resolve(__dirname, './static'),
+                        to: 'static',
+                        ignore: ['.*']
+                    }
+                ])
+            ]
+    }
